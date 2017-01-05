@@ -1,0 +1,295 @@
+/*******************************************************************************
+* DISCLAIMER
+* This software is supplied by Renesas Electronics Corporation and is only 
+* intended for use with Renesas products. No other uses are authorized. This 
+* software is owned by Renesas Electronics Corporation and is protected under
+* all applicable laws, including copyright laws.
+* THIS SOFTWARE IS pROVIDED "AS IS" AND RENESAS MAKES NO WARRANTIES REGARDING
+* THIS SOFTWARE, WHETHER EXpRESS, IMpLIED OR STATUTORY, INCLUDING BUT NOT
+* LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A pARTICULAR pURpOSE 
+* AND NON-INFRINGEMENT. ALL SUCH WARRANTIES ARE EXpRESSLY DISCLAIMED.
+* TO THE MAXIMUM EXTENT pERMITTED NOT pROHIBITED BY LAW, NEITHER RENESAS 
+* ELECTRONICS CORpORATION NOR ANY OF ITS AFFILIATED COMpANIES SHALL BE LIABLE 
+* FOR ANY DIRECT, INDIRECT, SpECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES FOR
+* ANY REASON RELATED TO THIS SOFTWARE, EVEN IF RENESAS OR ITS AFFILIATES HAVE
+* BEEN ADVISED OF THE pOSSIBILITY OF SUCH DAMAGES.
+* Renesas reserves the right, without notice, to make changes to this software
+* and to discontinue the availability of this software. By using this software,
+* you agree to the additional terms and conditions found by accessing the 
+* following link:
+* http://www.renesas.com/disclaimer *
+* Copyright (C) 2012 Renesas Electronics Corporation. All rights reserved.    
+*******************************************************************************/
+/*******************************************************************************
+* File Name     : sci_async_main.c
+* Version       : 1.0
+* Device(s)     : RX63N
+* Tool-Chain    : Renesas RX Standard Toolchain 1.0.0
+* OS            : None
+* H/W platform  : YRDKRX63N
+* Description   : This is the main sample code. Application demonstrates use of 
+*               : the UART to send and receive data over the RS232 interface.
+* Operation     : 1. Compile and download the sample code. 
+*               : 2. Connect RS232 port to a pC or serial data terminal. 
+*               :    Confirm terminal port settings: 
+*               :      115200 baud, 8-bits, No parity, 1 stop bit, no handshake. 
+*               : 3. Click 'Reset Go' to start the software. 
+*               : 4. Observe LEDs flash.
+*               : 5. Observe message print to terminal
+*               : 6. Enter text on terminal and observe characters echoed back.
+*               :    
+*******************************************************************************/
+/*******************************************************************************
+* History : DD.MM.YYYY     Version     Description
+*         : 22.02.2012     1.00        First release
+*******************************************************************************/
+
+/*******************************************************************************
+Includes   <System Includes> , "project Includes"
+*******************************************************************************/
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <machine.h>
+#include "platform.h"
+#include "uart.h" 
+#include "customCAN.h"
+
+/*******************************************************************************
+* prototypes for local functions
+*******************************************************************************/
+
+
+int mailbox();
+
+void delay(void);
+nt Q_Enqueue(Q *q, unsigned char d);
+unsigned char Q_Dequeue(Q * q);
+void Q_Init(Q *q);
+int Q_Full(Q *q);
+int Q_Empty(Q *q);
+Q_Enqueue(Q *q, unsigned char d); 
+unsigned char Q_Dequeue(Q * q);
+
+/*******************************************************************************
+* GLOBAL VARIABLES
+*******************************************************************************/
+int rxint = 0, txint = 0;
+int txmbx ;
+int rxmbx ;
+int ID_tx,ID_rx;
+extern CANtxrx rxframe,txframe; // New frame
+typedef struct {
+unsigned char Data[count];
+	unsigned int Head; //points to oldest data element
+	unsigned int Tail; //points to next free space
+	unsigned int count; //quantity of elements in queue
+			} Q;
+#define count 15
+char ct1[10],ct2[10];
+int queue_full = 1;
+Q tx_q, rx_q;
+unsigned char *txqq = &tx_q;
+unsigned char *rxqq = &rx_q;
+
+/******************************************************************************
+* Function name: main
+* Description  : Main program function
+* Arguments    : none
+* Return value : none
+********..**********************************************************************/
+void main(void)
+{
+	int i;
+	int reset = 0;
+	
+	char A[] =0;
+	int rxFlag = 1;
+	lcd_initialize(); 
+	lcd_clear(); 
+	interrupts();
+	
+    uint8_t new_char;
+    
+    /* Initialize LCD */
+    lcd_initialize();
+    
+    /* Clear LCD */
+    lcd_clear();
+	
+	/* For mailbox selection*/
+	lcd_display(LCD_LINE1, "Select TX ");
+	txmbx =mailbox(1,3);
+	  lcd_clear();
+	  delay();
+	  
+	  delay();
+	  lcd_display(LCD_LINE1, "Select RX ");
+	  rxmbx =mailbox(2,4);
+	  lcd_clear();
+	  
+	  lcd_display(LCD_LINE1, "Id - tx");
+	  ID_tx =mailbox(2,5);
+	  
+	  lcd_display(LCD_LINE1, "Id - rx ");
+	  ID_rx =mailbox(1,3);
+	  lcd_clear();          
+	
+    /* Initialize the SCI channel for asynchronous UART communications. */
+    sci_uart_init(); 
+    sci_tx_int_enable();
+    sci_rx_int_enable(); 
+     
+	 i=CANInit();                             //can initialisation
+	 if(i==0) 
+		{
+			lcd_display(LCD_LINE6, "ERROR");  
+			return 0;
+		}
+	 Q_Init(*txqq);
+	 Q_Init(*rxqq); 
+    while (1)
+		{		
+        	if(sci_read_uart())
+			{                                                          /* Triggered on receive*/
+				new_char = sci_get_char();                                 /* Get the char waiting in buffer.*/
+				txframe.data[0]= Q_Dequeue(*txqq);
+				printf("Txframe[0]=%d\n",0,txframe.data[0]);	
+				transmitmailbox();
+				lcd_clear(); 	
+				if(CAN0.MCTL[txmbx].BIT.TX.SENTDATA==1)
+				{
+				txint=0; 
+				sprintf(A,"%c",txframe.data[0]); 
+				lcd_display(LCD_LINE2,"TX Data"); 
+				lcd_display(LCD_LINE3,A); 
+				}											
+			}
+		
+			if(CAN0.MCTL[rxmbx].BIT.RX.NEWDATA==1)
+			{	 
+				readmailbox(rxmbx); 
+				if((CAN0.MB[rxmbx].ID.BIT.SID == ID_rx)) 
+				  { 
+					Q_Enqueue(*rxqq, rxframe.data[0]);
+					sci_put_char(Q_Dequeue(*rxqq));
+					for(int j = 1000; j <= 0; j--);
+					sprintf(l0,"%c",rxframe.data[0]); 
+					lcd_display(LCD_LINE5,"RxData"); 
+					lcd_display(LCD_LINE6,l0); 
+					sci_put_string(10);
+					txframe.id=rxframe.id; 
+					txframe.dlc=rxframe.dlc; 
+				} 
+			rxint=0; 
+			} 										
+				
+	   }
+}
+		
+		
+			
+    
+} /* End of function main() */
+
+
+// Initialize any queue
+void Q_Init(Q *q) {
+	unsigned int i;
+	for (i=0; i<count; i++){
+		q->Data[i] = 0; 
+		q->Head = 0;
+		q->Tail = 0;
+		q->count = 0;
+	}
+}
+	
+int Q_Empty(Q *q) {
+	return q->count == 0;
+}
+int Q_Full(Q *q) {
+	return (q->count == count);
+}
+
+// put values in the queue
+int Q_Enqueue(Q *q, unsigned char d) 
+{
+	if(!Q_Full(q))
+	{
+		q->Data [q->Tail++] = d;
+		q->Tail %= count;
+		q->count++;
+		printf("Data = %c", d);
+		printf ("Tail - %d\n", q->Tail);
+		printf ("Queue count - %d\n", q->count);
+		return 1;
+	}
+ else 
+	{
+		return 0;
+	}
+} 
+
+unsigned char Q_Dequeue(Q *q){
+unsigned char t = 0;
+	if(!Q_Empty(q))
+	{
+		t = q->Data [q->Head ];
+		q->Data [q->Head++] = 0;
+		q->Head %= count;
+		q->count--; //= q->count - 1;
+    }
+ return t;
+}
+
+
+/******************************************************************************
+* Function name: delay2() 
+* Description  : Executed to produce a delay for a switch press                  
+* Arguments    : none
+* Return value : none
+******************************************************************************/
+void delay(void)
+{
+	volatile long long c = 300000;
+     while(c!=0);
+	{
+		c--;
+	}
+}
+   
+int mailbox(int p, int r)
+{
+		int flag = 1;
+	   char m1[10],p[10];
+	   sprintf(m1,"%d",p);
+	   lcd_display(LCD_LINE3, m1);
+	   sprintf(p,"%d",r);
+	   lcd_display(LCD_LINE4, p);
+	   while(flag == 1)
+	   {	
+	   	if(PORT4.PIDR.BIT.B0 ==0)	                          /* Check if switch1 is pressed*/
+		{
+			delay();				                          /*add debounce*/
+   			if (PORT4.PIDR.BIT.B0 == 0)
+				{
+				flag=0;
+	   			return(p);
+				
+				}
+		}
+ 
+       	if(PORT4.PIDR.BIT.B1 ==0)	                         /* Check if switch2 is pressed*/
+		{
+			delay();				                        /*add debounce*/
+   			if (PORT4.PIDR.BIT.B1 == 0)
+				{
+				flag=0;
+		    	return(r);
+				}
+		}		
+   
+       }
+   }
+
+

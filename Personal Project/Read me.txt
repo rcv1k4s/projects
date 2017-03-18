@@ -1,0 +1,5 @@
+Simple Program retreiving 5 and 16 day weather forecast from openweathermap API.
+storing retrived data in MongoDB NOSQL database.
+Parsing Data and printing Cumulative Weather report of Day.
+corrections would be appreciated.
+Python-3 and MongoDB used 

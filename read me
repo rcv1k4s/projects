@@ -1,0 +1,93 @@
+By Ramachandra Vikas Chamarthi
+vikaschamarthi240@gmail.com
+
+sudo apt-get install gcc-version  		To Install
+
+sudo apt purge gcc-version			To Uninstall
+
+sudo sh cuda_run_file.run                       To Cuda-3.2
+
+sudo sh cuda_sdk_file.run 			To Cuda SDK creates a folder in NVIDIA_GPU_COMPUTING_SDK
+
+go to C/common
+
+sudo make //to make libraries
+
+
+
+
+Use GCC-4.4 for benchmark compilation and simulation
+
+use GCC>4.9 for scons build
+
+CUDA-3.2
+
+
+How to know the version Keep a tab on these and adjust versions accordingly to solve errors
+
+gcc --version
+
+nvcc --version
+
+g++-- version
+
+Paths used are in images:
+
+export NVIDIA_CUD_SDK_LOCATION=/home/viki/NVIDIA_GPU_COMPUTING/C
+
+export PATH=$PATH:/usr/local/cuda/bin
+
+export CUDAHOME=/usr/local/cuda
+
+Carefully install CUDA-3.2 and other from reference page.
+
+
+
+Instructions and commands from
+
+
+https://gem5-gpu.cs.wisc.edu/wiki/start
+
+Run patch 
+
+patch < isnan.patch 
+
+run it in /gem5-gpu/gpugpu-sim/cuda-sim directory for resolving instructions.cc
+
+version control: sudo ln -s /usr/bin/gcc-4.4 /usr/bin/gcc     //makes 4.4 as default gcc coompiler version 
+
+
+
+
+compile
+cd gem5
+scons build/X86_VI_hammer_GPU/gem5.opt --default=X86 EXTRAS=../gem5-gpu/src:../gpgpu-sim/ PROTOCOL=VI_hammer GPGPU_SIM=True
+
+
+Compiling benchmarks:
+
+cd benchmarks/ to required benchmark folder
+
+make gem5-fusion to get the executable
+
+passing aruguments to benchmarks we used
+"no of threads" - backprop
+"height length width" - pathfinder
+"text.avi no:offrames" -heartwell,leukocyte and mytocyte (text.avi is data file as input for benchmarks)
+
+
+
+running
+cd gem5
+build/X86_VI_hammer_GPU/gem5.opt ../gem5-gpu/configs/se_fusion.py -c home/mkhairy/gem5-gpu2/benchmarks/rodinia/backprop/gem5_fusion_backprop -o "No of threads"
+
+
+For running nocopy versions 
+
+we need to use --access-host-pagetable at last for nocopy benchmarks
+
+build/X86_VI_hammer_GPU/gem5.opt ../gem5-gpu/configs/se_fusion.py -c /..../gem5-gpu/benchmarks/rodinia/backprop/gem5_fusion_backprop -o "No of threads" --access-host-pagetable
+
+
+
+

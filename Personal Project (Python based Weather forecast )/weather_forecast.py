@@ -46,8 +46,7 @@ while h==1:
  
 
  def func16day(t,d):
-    #print('select options: 1.Charlotte 2.Newyork 3.London 4.Delhi')
-    #x = int(input("Please enter selection:"))
+    
     x = d									# city selection
     if x==1:
      m = 'http://api.openweathermap.org/data/2.5/forecast/daily?q=Charlotte&APPID=f32b0590d7a69e134a82e2cc73047459&cnt=16'
@@ -60,10 +59,10 @@ while h==1:
     else:
      print('invalid selection')
     g = requests.get(m)								#Retrieving data in JSON format
-    #pprint(g.json())
+    
     db.wd16day.insert(g.json());						#Inserting into Database
     data = json.loads(g.text)							# Converting into dict class for easier sorting
-    #print(data)
+    
     n=1
     q=0
     while (q < 15):
@@ -72,9 +71,7 @@ while h==1:
      print("Day %d Weather: %s "%((q),str(k)))
     print("Hit 1 to continue")
     return
- #def funcamap():
- # print ('i am aewsome')
- # result = db.wmap.insert_one(v.json())
+ 
  z = int(input('city no:'))							# City user Input
  t=('0',)
  a = z
@@ -91,5 +88,5 @@ while h==1:
  if f==1:
   db.wd16day.delete_many({})
   db.wd5day.delete_many({})
- # thread.start_new_thread (funcamap)u
+ 
  
